@@ -20,6 +20,7 @@
 
 // Skipping
 @property (nonatomic) BOOL allowSkipping;
+@property (nonatomic) BOOL showSkipOnlyOnLastPage;
 @property (nonatomic, strong) dispatch_block_t skipHandler;
 
 // Swiping
@@ -34,6 +35,12 @@
 
 // Movie player
 @property (nonatomic) MPMoviePlayerController *moviePlayerController;
+
+@property (nonatomic) UIImageView *currentPageBackgroundImageView;
+@property (nonatomic) UIImageView *previousNextPageBackgroundImageView;
+@property (nonatomic) UIView *backgroundMaskView;
+
+@property (nonatomic) BOOL isLastPageLoaded;
 
 // Initializers
 + (instancetype)onboardWithBackgroundImage:(UIImage *)backgroundImage contents:(NSArray *)contents;

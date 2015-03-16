@@ -8,6 +8,12 @@
 
 #import <UIKit/UIKit.h>
 
+typedef enum {
+    TitlePosition_Top,
+    TitlePosition_Middle,
+    TitlePosition_Bottom
+} TutorialTitlePosition;
+
 @class OnboardingViewController;
 
 @interface OnboardingContentViewController : UIViewController {
@@ -17,6 +23,7 @@
     NSString *_buttonText;
     dispatch_block_t _actionHandler;
     
+    UIImageView *_backgroundImageView;
     UIImageView *_imageView;
     UILabel *_mainTextLabel;
     UILabel *_subTextLabel;
@@ -47,12 +54,19 @@
 @property (nonatomic) CGFloat underIconPadding;
 @property (nonatomic) CGFloat underTitlePadding;
 @property (nonatomic) CGFloat bottomPadding;
+@property (nonatomic) CGFloat extraTitlePadding;
+
+@property (nonatomic, strong) UIImage *backgroundImage;
+@property (nonatomic) BOOL playMovie;
+
+@property (nonatomic) TutorialTitlePosition titlePosition;
 
 @property (nonatomic, copy) dispatch_block_t viewWillAppearBlock;
 @property (nonatomic, copy) dispatch_block_t viewDidAppearBlock;
 
 + (instancetype)contentWithTitle:(NSString *)title body:(NSString *)body image:(UIImage *)image buttonText:(NSString *)buttonText action:(dispatch_block_t)action;
 - (instancetype)initWithTitle:(NSString *)title body:(NSString *)body image:(UIImage *)image buttonText:(NSString *)buttonText action:(dispatch_block_t)action;
+- (instancetype)initWithTitle:(NSString *)title body:(NSString *)body backgroundImage:(UIImage *)backgroundImage buttonText:(NSString *)buttonText action:(dispatch_block_t)action;
 
 - (void)updateAlphas:(CGFloat)newAlpha;
 

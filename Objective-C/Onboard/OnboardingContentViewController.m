@@ -22,6 +22,7 @@ static CGFloat const kDefaultBottomPadding = 0;
 static CGFloat const kDefaultTitleFontSize = 38;
 static CGFloat const kDefaultBodyFontSize = 28;
 static CGFloat const kDefaultButtonFontSize = 24;
+static CGFloat const kDefaultExtraTitlePadding = 0;
 
 static CGFloat const kActionButtonHeight = 50;
 static CGFloat const kMainPageControlHeight = 35;
@@ -35,6 +36,14 @@ static CGFloat const kMainPageControlHeight = 35;
 + (instancetype)contentWithTitle:(NSString *)title body:(NSString *)body image:(UIImage *)image buttonText:(NSString *)buttonText action:(dispatch_block_t)action {
     OnboardingContentViewController *contentVC = [[self alloc] initWithTitle:title body:body image:image buttonText:buttonText action:action];
     return contentVC;
+}
+
+- (instancetype)initWithTitle:(NSString *)title body:(NSString *)body backgroundImage:(UIImage *)backgroundImage buttonText:(NSString *)buttonText action:(dispatch_block_t)action {
+    
+    self = [self initWithTitle:title body:body image:nil buttonText:buttonText action:action];
+    self.backgroundImage = backgroundImage;
+    
+    return self;
 }
 
 - (instancetype)initWithTitle:(NSString *)title body:(NSString *)body image:(UIImage *)image buttonText:(NSString *)buttonText action:(dispatch_block_t)action {
@@ -73,6 +82,7 @@ static CGFloat const kMainPageControlHeight = 35;
     self.underIconPadding = kDefaultUnderIconPadding;
     self.underTitlePadding = kDefaultUnderTitlePadding;
     self.bottomPadding = kDefaultBottomPadding;
+    self.extraTitlePadding = kDefaultExtraTitlePadding;
     
     // default colors
     self.titleTextColor = DEFAULT_TEXT_COLOR;
@@ -133,17 +143,43 @@ static CGFloat const kMainPageControlHeight = 35;
     // create the image view with the appropriate image, size, and center in on screen
     _imageView = [[UIImageView alloc] initWithImage:_image];
     [_imageView setFrame:CGRectMake(horizontalCenter - (self.iconWidth / 2), self.topPadding, self.iconWidth, self.iconHeight)];
-    [self.view addSubview:_imageView];
+    //[self.view addSubview:_imageView];
     
     // create and configure the main text label sitting underneath the icon with the provided padding
-    _mainTextLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, CGRectGetMaxY(_imageView.frame) + self.underIconPadding, contentWidth, 0)];
+    //_mainTextLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, CGRectGetMaxY(_imageView.frame) + self.underIconPadding, contentWidth, 0)];
+    
+    _mainTextLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, self.topPadding, contentWidth, 0)];
+    
+    UIFont *mainTextFont = [UIFont fontWithName:self.titleFontName size:self.titleFontSize];
+    /*
+    if (_titleText)
+    {
+        NSMutableParagraphStyle *paragraphStyle = [[NSParagraphStyle defaultParagraphStyle] mutableCopy];
+        paragraphStyle.lineSpacing = 0.3f * mainTextFont.lineHeight;
+        
+        NSDictionary *attributes = @{NSFontAttributeName:mainTextFont,
+                                     NSParagraphStyleAttributeName:paragraphStyle,
+                                     };
+        
+        NSAttributedString *attributedText = [[NSAttributedString alloc] initWithString:_titleText attributes:attributes];
+        _mainTextLabel.attributedText = attributedText;
+    }
+    */
+    
     _mainTextLabel.text = _titleText;
     _mainTextLabel.textColor = self.titleTextColor;
-    _mainTextLabel.font = [UIFont fontWithName:self.titleFontName size:self.titleFontSize];
+    _mainTextLabel.font = mainTextFont;
     _mainTextLabel.numberOfLines = 0;
     _mainTextLabel.textAlignment = NSTextAlignmentCenter;
     [_mainTextLabel sizeToFit];
-    _mainTextLabel.center = CGPointMake(horizontalCenter, _mainTextLabel.center.y);
+    
+    if (_titlePosition == TitlePosition_Top)
+        _mainTextLabel.center = CGPointMake(horizontalCenter, _mainTextLabel.center.y + self.extraTitlePadding);
+    else if (_titlePosition == TitlePosition_Middle)
+        _mainTextLabel.center = CGPointMake(horizontalCenter, self.view.center.y + 20.0f + self.extraTitlePadding);
+    else if (_titlePosition == TitlePosition_Bottom)
+        _mainTextLabel.center = CGPointMake(horizontalCenter, self.view.frame.size.height - _mainTextLabel.frame.size.height / 2.0 - 20.0f - self.extraTitlePadding);
+    
     [self.view addSubview:_mainTextLabel];
     
     // create and configure the sub text label

@@ -11,13 +11,14 @@
 @import Accelerate;
 
 static CGFloat const kPageControlHeight = 35;
-static CGFloat const kSkipButtonWidth = 100;
+static CGFloat const kSkipButtonWidth = 80;
 static CGFloat const kSkipButtonHeight = 44;
 static CGFloat const kBackgroundMaskAlpha = 0.6;
 static CGFloat const kDefaultBlurRadius = 20;
 static CGFloat const kDefaultSaturationDeltaFactor = 1.8;
 
 static NSString * const kSkipButtonText = @"Skip";
+static NSString * const kDoneButtonText = @"Done";
 
 @implementation OnboardingViewController {
     UIImage *_backgroundImage;
@@ -81,6 +82,7 @@ static NSString * const kSkipButtonText = @"Skip";
     self.hidePageControl = NO;
     
     self.allowSkipping = NO;
+    self.showSkipOnlyOnLastPage = NO;
     self.skipHandler = ^{};
     
     // create the initial exposed components so they can be customized
@@ -89,6 +91,8 @@ static NSString * const kSkipButtonText = @"Skip";
     
     // create the movie player controller
     self.moviePlayerController = [MPMoviePlayerController new];
+    
+    self.isLastPageLoaded = NO;
     
     // Handle when the app enters the foreground.
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleAppEnteredForeground) name:UIApplicationWillEnterForegroundNotification object:nil];
@@ -108,6 +112,7 @@ static NSString * const kSkipButtonText = @"Skip";
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    [self.navigationController setNavigationBarHidden:YES animated:NO];
     
     // if we have a video URL, start playing
     if (_videoURL) {
@@ -127,24 +132,32 @@ static NSString * const kSkipButtonText = @"Skip";
         [self blurBackground];
     }
     
-    UIImageView *backgroundImageView;
+    //UIImageView *backgroundImageView;
     
     // create the background image view and set it to aspect fill so it isn't skewed
-    if (_backgroundImage) {
-        backgroundImageView = [[UIImageView alloc] initWithFrame:self.view.bounds];
-        backgroundImageView.contentMode = UIViewContentModeScaleAspectFill;
-        [backgroundImageView setImage:_backgroundImage];
-        [self.view addSubview:backgroundImageView];
-    }
+    //if (_backgroundImage) {
+        _currentPageBackgroundImageView = [[UIImageView alloc] initWithFrame:self.view.frame];
+        _currentPageBackgroundImageView.contentMode = UIViewContentModeScaleAspectFill;
+        if (_backgroundImage)
+            [_currentPageBackgroundImageView setImage:_backgroundImage];
+    
+        [self.view addSubview:_currentPageBackgroundImageView];
+    //}
+    
+    _previousNextPageBackgroundImageView = [[UIImageView alloc] initWithFrame:self.view.frame];
+    _previousNextPageBackgroundImageView.contentMode = UIViewContentModeScaleAspectFill;
+    _previousNextPageBackgroundImageView.alpha = 0.0;
+    [self.view addSubview:_previousNextPageBackgroundImageView];
     
     // as long as the shouldMaskBackground setting hasn't been set to NO, we want to
     // create a partially opaque view and add it on top of the image view, so that it
     // darkens it a bit for better contrast
-    UIView *backgroundMaskView;
+    //UIView *backgroundMaskView;
     if (self.shouldMaskBackground) {
-        backgroundMaskView = [[UIView alloc] initWithFrame:_pageVC.view.frame];
-        backgroundMaskView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:kBackgroundMaskAlpha];
-        [_pageVC.view addSubview:backgroundMaskView];
+        _backgroundMaskView = [[UIView alloc] initWithFrame:_pageVC.view.frame];
+        _backgroundMaskView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:kBackgroundMaskAlpha];
+        _backgroundMaskView.alpha = 0.0;
+        [_pageVC.view addSubview:_backgroundMaskView];
     }
     
     // set the initial current page as the first page provided
@@ -156,15 +169,22 @@ static NSString * const kSkipButtonText = @"Skip";
     [self addChildViewController:_pageVC];
     [self.view addSubview:_pageVC.view];
     [_pageVC didMoveToParentViewController:self];
-    [_pageVC.view sendSubviewToBack:backgroundMaskView];
+    [_pageVC.view sendSubviewToBack:_backgroundMaskView];
     
     // send the background image view to the back if we have one
-    if (backgroundImageView) {
-        [_pageVC.view sendSubviewToBack:backgroundImageView];
-    }
+    //if (_currentPageBackgroundImageView) {
+    //    [_pageVC.view sendSubviewToBack:_currentPageBackgroundImageView];
+    //}
+    
+    [_pageVC.view sendSubviewToBack:_currentPageBackgroundImageView];
+    [_pageVC.view sendSubviewToBack:_previousNextPageBackgroundImageView];
     
     // otherwise send the video view to the back if we have one
-    else if (_videoURL) {
+    //else if (_videoURL) {
+    if (_videoURL) {
+        _currentPageBackgroundImageView.alpha = 0.0;
+        _backgroundMaskView.alpha = 1.0;
+        
         self.moviePlayerController.contentURL = _videoURL;
         self.moviePlayerController.view.frame = _pageVC.view.frame;
         self.moviePlayerController.repeatMode = MPMovieRepeatModeOne;
@@ -185,9 +205,13 @@ static NSString * const kSkipButtonText = @"Skip";
     // if we allow skipping, setup the skip button
     if (self.allowSkipping) {
         self.skipButton.frame = CGRectMake(CGRectGetMaxX(self.view.frame) - kSkipButtonWidth, CGRectGetMaxY(self.view.frame) - kSkipButtonHeight, kSkipButtonWidth, kSkipButtonHeight);
-        [self.skipButton setTitle:kSkipButtonText forState:UIControlStateNormal];
+        [self.skipButton setTitle:NSLocalizedString(kSkipButtonText, @"") forState:UIControlStateNormal];
+        self.skipButton.titleLabel.font = [UIFont fontWithName:@"HelveticaNeue-Light" size:15.0f];
         [self.skipButton addTarget:self action:@selector(handleSkipButtonPressed) forControlEvents:UIControlEventTouchUpInside];
         [self.view addSubview:self.skipButton];
+        
+        if (self.showSkipOnlyOnLastPage)
+            [self.skipButton setHidden:YES];
     }
     
     // if we want to fade the transitions, we need to tap into the underlying scrollview
@@ -367,9 +391,43 @@ static NSString * const kSkipButtonText = @"Skip";
     
     // get the view controller we are moving towards, then get the index, then set it as the current page
     // for the page control dots
-    UIViewController *viewController = [pageViewController.viewControllers lastObject];
+    OnboardingContentViewController *viewController = (OnboardingContentViewController *)[pageViewController.viewControllers lastObject];
     NSInteger newIndex = [_viewControllers indexOfObject:viewController];
     [self.pageControl setCurrentPage:newIndex];
+    
+    if (self.allowSkipping && self.skipButton)
+    {
+        if (viewController == [_viewControllers lastObject] || self.isLastPageLoaded)
+        {
+            [self.skipButton setHidden:NO];
+            
+            self.isLastPageLoaded = YES;
+            [self.skipButton setTitle:NSLocalizedString(kDoneButtonText, @"") forState:UIControlStateNormal];
+        }
+        else
+        {
+            [self.skipButton setTitle:NSLocalizedString(kSkipButtonText, @"") forState:UIControlStateNormal];
+            if (self.showSkipOnlyOnLastPage)
+                [self.skipButton setHidden:YES];
+
+        }
+    }
+    
+    if (self.moviePlayerController)
+    {
+        if (viewController.playMovie)
+        {
+            if (self.moviePlayerController.playbackState == MPMoviePlaybackStatePaused) {
+                [self.moviePlayerController play];
+            }
+        }
+        else
+        {
+            if (self.moviePlayerController.playbackState == MPMoviePlaybackStatePlaying) {
+                [self.moviePlayerController pause];
+            }
+        }
+    }
 }
 
 - (void)moveNextPage {
@@ -407,10 +465,53 @@ static NSString * const kSkipButtonText = @"Skip";
     // scrolling towards the next page, its content's alpha should be 90%
     [_upcomingPage updateAlphas:percentComplete];
     
+    if (_upcomingPage.backgroundImage)
+    {
+        self.backgroundMaskView.alpha = 0.0;
+        
+        [_previousNextPageBackgroundImageView setImage:_upcomingPage.backgroundImage];
+        _previousNextPageBackgroundImageView.alpha = percentComplete;
+    }
+    else
+        _previousNextPageBackgroundImageView.alpha = 0.0;
+ 
     // set the current page's alpha to the difference between 100% and this percent value,
     // so we're 90% scrolling towards the next page, the current content's alpha sshould be 10%
     [_currentPage updateAlphas:1.0 - percentComplete];
     
+    if (_currentPage.backgroundImage)
+    {
+        self.backgroundMaskView.alpha = 0.0;
+        [_currentPageBackgroundImageView setImage:_currentPage.backgroundImage];
+        _currentPageBackgroundImageView.alpha = 1.0 - percentComplete;
+    }
+    else
+        _currentPageBackgroundImageView.alpha = 0.0;
+    
+    if (self.moviePlayerController)
+    {
+        if (_upcomingPage.playMovie && !_currentPage.playMovie)
+        {
+            self.backgroundMaskView.alpha = percentComplete;
+            self.moviePlayerController.view.alpha = percentComplete;
+        }
+        else if (!_upcomingPage.playMovie && _currentPage.playMovie)
+        {
+            self.backgroundMaskView.alpha = 1.0 - percentComplete;
+            self.moviePlayerController.view.alpha = 1.0 - percentComplete;
+        }
+        else if (_upcomingPage.playMovie && _currentPage.playMovie)
+        {
+            self.backgroundMaskView.alpha = 1.0;
+            self.moviePlayerController.view.alpha = 1.0;
+        }
+        else
+        {
+            self.moviePlayerController.view.alpha = 0.0;
+            self.backgroundMaskView.alpha = 0.0;
+        }
+    }
+
     // If we want to fade the page control on the last page...
     if (self.fadePageControlOnLastPage) {
         // If the upcoming page is the last object, fade the page control out as we scroll.
