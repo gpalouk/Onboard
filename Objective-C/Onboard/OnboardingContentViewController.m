@@ -66,7 +66,9 @@ static CGFloat const kMainPageControlHeight = 35;
     // default title properties
     self.titleFontName = kDefaultOnboardingFont;
     self.titleFontSize = kDefaultTitleFontSize;
-    
+    UIFontDescriptor *fontDescr = [[UIFont systemFontOfSize:kDefaultTitleFontSize].fontDescriptor fontDescriptorWithFace:@"Light"];
+    self.titleFont = [UIFont fontWithDescriptor:fontDescr size:0.0];
+  
     // default body properties
     self.bodyFontName = kDefaultOnboardingFont;
     self.bodyFontSize = kDefaultBodyFontSize;
@@ -146,7 +148,7 @@ static CGFloat const kMainPageControlHeight = 35;
     _mainTextLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, CGRectGetMaxY(_imageView.frame) + self.underIconPadding, contentWidth, 0)];
     _mainTextLabel.text = _titleText;
     _mainTextLabel.textColor = self.titleTextColor;
-    _mainTextLabel.font = [UIFont fontWithName:self.titleFontName size:self.titleFontSize];
+    _mainTextLabel.font = self.titleFont;
     _mainTextLabel.numberOfLines = 0;
     _mainTextLabel.textAlignment = NSTextAlignmentCenter;
     [_mainTextLabel sizeToFit];

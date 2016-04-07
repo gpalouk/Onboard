@@ -34,6 +34,7 @@
 @property (nonatomic, strong) UIColor *bodyTextColor;
 @property (nonatomic, strong) UIColor *buttonTextColor;
 
+@property (nonatomic, strong) UIFont *titleFont;
 @property (nonatomic, strong) NSString *titleFontName;
 @property (nonatomic) CGFloat titleFontSize;
 
